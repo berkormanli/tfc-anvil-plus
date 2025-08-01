@@ -438,6 +438,8 @@ function refreshNextHints() {
             el.classList = 'performed hidden';
         }
     })
+    // Update the full sequence list whenever hints are refreshed
+    refreshStepList();
 }
 
 function expectationForStep(i, counted) {
@@ -543,7 +545,7 @@ function refreshExpected() {
             stEl.classList = '';
         }
     });
-    refreshStepList(); // Update step list every time expected changes
+    // Note: refreshStepList will be called by refreshNextHints after nextSteps is calculated
 }
 
 /**
@@ -985,11 +987,31 @@ function deleteRecipe(name) {
     }
 }
 
+function exportRecipes() {
+    // Get all recipes using the existing loadRecipes function
+    const recipes = loadRecipes();
+    
+    // Create a Blob from the JSON stringified recipes with proper formatting
+    const jsonData = JSON.stringify(recipes, null, 2);
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    
+    // Create a temporary anchor element and trigger download
+    const downloadLink = document.createElement('a');
+    downloadLink.download = 'tfc-recipes-backup.json';
+    downloadLink.href = URL.createObjectURL(blob);
+    
+    // Trigger the download by clicking the link
+    downloadLink.click();
+    
+    // Clean up by revoking the object URL
+    URL.revokeObjectURL(downloadLink.href);
+}
+
 function renameRecipe(oldName, newName) {
     const recipes = loadRecipes();
     const found = recipes.find(r => r.name === oldName);
     if (!found) {
-        alert(`Recipe "${oldName}" not found.`);
+utils.displayError(`Recipe "${oldName}" not found.`, document.getElementById('recipeList'));
         return;
     }
     if (recipes.find(r => r.name === newName)) {
@@ -1051,9 +1073,10 @@ function loadRecipeToUI(recipe) {
     updateProgress(redSlider, recipe.redProgress);
     updateProgress(greenSlider, recipe.greenProgress);
     
-    // Refresh the UI
+    // Refresh the UI with the correct target values from the recipe
     refreshExpected();
-    refreshHints();
+    // Pass the recipe's green progress to ensure calculations use the correct target value
+    refreshHints(recipe.greenProgress);
 }
 
 /**
@@ -1234,6 +1257,133 @@ function copyStepGroupToClipboard(stepName, count) {
 }
 
 /**
+ * Handle import of recipe files
+ * @param {File} file - The selected JSON file containing recipes
+ */
+function handleImport(file) {
+    // Step 1: Check file size and warn if larger than 1 MB
+    if (file.size > 1024 * 1024) {
+        alert('Warning: File size exceeds 1 MB, which may cause performance issues.');
+    }
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        try {
+            // Step 2: Parse JSON and catch any parsing errors
+            const data = JSON.parse(e.target.result);
+            
+            // Step 3: Validate that data is an array
+            if (!Array.isArray(data)) {
+                alert('Invalid JSON: Expected an array of recipes');
+                return;
+            }
+            
+            // Validate each recipe in the array
+            for (let i = 0; i < data.length; i++) {
+                const recipe = data[i];
+                
+// Normalize and check for duplicate names differing only in case
+                const lowerCaseNames = data.map(recipe => recipe.name.toLowerCase());
+                if (new Set(lowerCaseNames).size !== data.length) {
+                    utils.displayError('Duplicate recipe names found differing only by case.', event.target);
+                    return;
+                }
+
+                // Validate required fields
+if (typeof recipe.name !== 'string' || recipe.name.trim() === '') {
+                    utils.displayError(`Invalid recipe at index ${i}: 'name' must be a non-empty string`, event.target);
+                    alert(`Invalid recipe at index ${i}: 'name' must be a non-empty string`);
+                    return;
+                }
+                
+                if (typeof recipe.redProgress !== 'number' || isNaN(recipe.redProgress)) {
+                    alert(`Invalid recipe "${recipe.name}": 'redProgress' must be a number`);
+                    return;
+                }
+                
+                if (typeof recipe.greenProgress !== 'number' || isNaN(recipe.greenProgress)) {
+                    alert(`Invalid recipe "${recipe.name}": 'greenProgress' must be a number`);
+                    return;
+                }
+                
+                // Handle expected field (array) or legacy rulesText
+                if (recipe.hasOwnProperty('expected')) {
+                    if (!Array.isArray(recipe.expected)) {
+                        alert(`Invalid recipe "${recipe.name}": 'expected' must be an array`);
+                        return;
+                    }
+                } else if (recipe.hasOwnProperty('rulesText')) {
+                    // Convert legacy rulesText to new format with empty expected array
+                    recipe.expected = [];
+                    delete recipe.rulesText;
+                } else {
+                    alert(`Invalid recipe "${recipe.name}": must have either 'expected' array or legacy 'rulesText'`);
+                    return;
+                }
+            }
+            
+            // All validation passed - proceed with import
+            let importedCount = 0;
+            let skippedCount = 0;
+            
+            // Load existing recipes once
+            const existingRecipes = loadRecipes();
+            const finalRecipesArray = [...existingRecipes];
+            
+            data.forEach(recipe => {
+                const existingIndex = finalRecipesArray.findIndex(r => r.name === recipe.name);
+                
+                if (existingIndex !== -1) {
+                    const overwrite = confirm(`Recipe "${recipe.name}" already exists. Overwrite?`);
+                    if (overwrite) {
+                        finalRecipesArray[existingIndex] = recipe;
+                        importedCount++;
+                    } else {
+                        skippedCount++;
+                    }
+                } else {
+                    finalRecipesArray.push(recipe);
+                    importedCount++;
+                }
+            });
+            
+            // Step 6: Persist imported data and refresh UI
+            // 1. Persist all recipes at once
+            localStorage.setItem('recipes', JSON.stringify(finalRecipesArray));
+            
+            // 2. Call populateRecipeList() to redraw the drop-down
+            populateRecipeList();
+            
+            // 3. Alert "Import successful (X recipes)"
+            let message = `Import successful (${importedCount} recipes)`;
+            if (skippedCount > 0) {
+                message += `\n${skippedCount} recipe(s) skipped`;
+            }
+            alert(message);
+            
+            // 4. Clear any selection if replaced
+            const recipeSelect = document.getElementById('recipeList');
+            if (recipeSelect) {
+                recipeSelect.value = '';
+            }
+            
+        } catch (error) {
+            // Step 2: Catch JSON parsing errors
+            alert('Invalid JSON: Unable to parse file content');
+            return;
+        }
+    };
+    
+    reader.onerror = function() {
+        // Step 1: Catch file reading errors
+        alert('Error reading file: Unable to read the selected file');
+    };
+    
+    // Step 1: Read file text with FileReader (async)
+    reader.readAsText(file);
+}
+
+/**
  * Initialize recipe management system
  * Called after DOM is ready to ensure elements exist
  */
@@ -1251,6 +1401,31 @@ function initializeRecipeManagement() {
             const recipeData = getCurrentRecipeData();
             const recipe = { name: name.trim(), ...recipeData };
             saveRecipe(recipe);
+        });
+    }
+    
+    // Export recipes button
+    const exportButton = document.getElementById('exportRecipes');
+    if (exportButton) {
+        exportButton.addEventListener('click', exportRecipes);
+    }
+    
+    // Import recipes button - triggers file input click
+    const importButton = document.getElementById('importRecipes');
+    const importFileInput = document.getElementById('importFileInput');
+    if (importButton && importFileInput) {
+        importButton.addEventListener('click', () => {
+            importFileInput.click();
+        });
+        
+        // Handle file selection
+        importFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                handleImport(file);
+                // Reset input value so same file can be chosen again later
+                event.target.value = '';
+            }
         });
     }
     

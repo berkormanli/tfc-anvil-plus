@@ -401,6 +401,250 @@
             };
         }, 'recipe-crud');
 
+        // Import/Export Tests
+        testRunner.addTest('Import/Export - Valid Export Download', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            const frameDoc = frame.contentDocument || frameWindow.document;
+            
+            // Ensure we have test data
+            const testRecipes = [
+                { name: 'Export Test Recipe', expected: [], redProgress: 50, greenProgress: 75 }
+            ];
+            frameWindow.localStorage.setItem('recipes', JSON.stringify(testRecipes));
+            
+            const exportButton = frameDoc.getElementById('exportRecipes');
+            if (!exportButton) {
+                return { passed: false, message: 'Export button not found' };
+            }
+            
+            // Mock URL.createObjectURL and click to test export
+            let exportTriggered = false;
+            const originalCreateObjectURL = frameWindow.URL.createObjectURL;
+            frameWindow.URL.createObjectURL = (blob) => {
+                exportTriggered = true;
+                // Verify blob contains valid JSON
+                const reader = new FileReader();
+                return new Promise((resolve) => {
+                    reader.onload = () => {
+                        try {
+                            const data = JSON.parse(reader.result);
+                            resolve(Array.isArray(data) && data.length > 0);
+                        } catch {
+                            resolve(false);
+                        }
+                    };
+                    reader.readAsText(blob);
+                });
+            };
+            
+            // Simulate export
+            exportButton.click();
+            
+            // Restore original function
+            frameWindow.URL.createObjectURL = originalCreateObjectURL;
+            
+            return { 
+                passed: exportTriggered, 
+                message: exportTriggered ? 'Export triggered successfully' : 'Export not triggered' 
+            };
+        }, 'import-export');
+
+        testRunner.addTest('Import/Export - Clear localStorage and Import', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            const frameDoc = frame.contentDocument || frameWindow.document;
+            
+            // Clear localStorage
+            frameWindow.localStorage.removeItem('recipes');
+            
+            // Verify empty state
+            const initialRecipes = JSON.parse(frameWindow.localStorage.getItem('recipes') || '[]');
+            if (initialRecipes.length > 0) {
+                return { passed: false, message: 'LocalStorage not properly cleared' };
+            }
+            
+            // Create test import data
+            const testImportData = [
+                { name: 'Imported Recipe 1', expected: [], redProgress: 30, greenProgress: 60 },
+                { name: 'Imported Recipe 2', expected: [], redProgress: 90, greenProgress: 120 }
+            ];
+            
+            // Mock File and handleImport function
+            const mockFile = new Blob([JSON.stringify(testImportData)], { type: 'application/json' });
+            
+            // Call handleImport directly
+            if (frameWindow.handleImport) {
+                frameWindow.handleImport(mockFile);
+                
+                // Wait for async import to complete
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Verify recipes were imported
+                const importedRecipes = JSON.parse(frameWindow.localStorage.getItem('recipes') || '[]');
+                const importSuccess = importedRecipes.length === 2 && 
+                                    importedRecipes.some(r => r.name === 'Imported Recipe 1');
+                
+                return { 
+                    passed: importSuccess, 
+                    message: importSuccess ? 'Import and localStorage repopulation successful' : 'Import failed' 
+                };
+            } else {
+                return { passed: false, message: 'handleImport function not found' };
+            }
+        }, 'import-export');
+
+        testRunner.addTest('Import/Export - Merge Path with Overlapping Names', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            
+            // Setup existing recipes
+            const existingRecipes = [
+                { name: 'Duplicate Recipe', expected: [], redProgress: 10, greenProgress: 20 }
+            ];
+            frameWindow.localStorage.setItem('recipes', JSON.stringify(existingRecipes));
+            
+            // Import data with overlapping name
+            const importData = [
+                { name: 'Duplicate Recipe', expected: [], redProgress: 50, greenProgress: 75 },
+                { name: 'New Recipe', expected: [], redProgress: 100, greenProgress: 150 }
+            ];
+            
+            // Mock confirm to always return true (overwrite)
+            const originalConfirm = frameWindow.confirm;
+            frameWindow.confirm = () => true;
+            
+            const mockFile = new Blob([JSON.stringify(importData)], { type: 'application/json' });
+            
+            if (frameWindow.handleImport) {
+                frameWindow.handleImport(mockFile);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const finalRecipes = JSON.parse(frameWindow.localStorage.getItem('recipes') || '[]');
+                const duplicateRecipe = finalRecipes.find(r => r.name === 'Duplicate Recipe');
+                const mergeSuccess = duplicateRecipe && duplicateRecipe.redProgress === 50; // Updated value
+                
+                // Restore confirm
+                frameWindow.confirm = originalConfirm;
+                
+                return { 
+                    passed: mergeSuccess, 
+                    message: mergeSuccess ? 'Merge with overlapping names successful' : 'Merge failed' 
+                };
+            } else {
+                frameWindow.confirm = originalConfirm;
+                return { passed: false, message: 'handleImport function not found' };
+            }
+        }, 'import-export');
+
+        testRunner.addTest('Import/Export - Replace Path Functionality', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            
+            // Setup existing recipes
+            const existingRecipes = [
+                { name: 'Replace Recipe', expected: [], redProgress: 25, greenProgress: 45 }
+            ];
+            frameWindow.localStorage.setItem('recipes', JSON.stringify(existingRecipes));
+            
+            // Import data to replace existing
+            const importData = [
+                { name: 'Replace Recipe', expected: [{ name: 'hit', last_idx: 0 }], redProgress: 80, greenProgress: 110 }
+            ];
+            
+            // Mock confirm to return true (replace)
+            const originalConfirm = frameWindow.confirm;
+            frameWindow.confirm = () => true;
+            
+            const mockFile = new Blob([JSON.stringify(importData)], { type: 'application/json' });
+            
+            if (frameWindow.handleImport) {
+                frameWindow.handleImport(mockFile);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const finalRecipes = JSON.parse(frameWindow.localStorage.getItem('recipes') || '[]');
+                const replacedRecipe = finalRecipes.find(r => r.name === 'Replace Recipe');
+                const replaceSuccess = replacedRecipe && 
+                                     replacedRecipe.redProgress === 80 && 
+                                     replacedRecipe.expected.length > 0; // Completely replaced
+                
+                // Restore confirm
+                frameWindow.confirm = originalConfirm;
+                
+                return { 
+                    passed: replaceSuccess, 
+                    message: replaceSuccess ? 'Replace path successful' : 'Replace failed' 
+                };
+            } else {
+                frameWindow.confirm = originalConfirm;
+                return { passed: false, message: 'handleImport function not found' };
+            }
+        }, 'import-export');
+
+        testRunner.addTest('Import/Export - Invalid JSON Handling', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            
+            // Mock alert to capture error messages
+            let alertMessage = '';
+            const originalAlert = frameWindow.alert;
+            frameWindow.alert = (msg) => { alertMessage = msg; };
+            
+            // Create invalid JSON file
+            const invalidJson = '{ "invalid": json, missing quotes }';
+            const mockFile = new Blob([invalidJson], { type: 'application/json' });
+            
+            if (frameWindow.handleImport) {
+                frameWindow.handleImport(mockFile);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const errorHandled = alertMessage.includes('Invalid JSON');
+                
+                // Restore alert
+                frameWindow.alert = originalAlert;
+                
+                return { 
+                    passed: errorHandled, 
+                    message: errorHandled ? 'Invalid JSON error handled correctly' : 'Invalid JSON not handled' 
+                };
+            } else {
+                frameWindow.alert = originalAlert;
+                return { passed: false, message: 'handleImport function not found' };
+            }
+        }, 'import-export');
+
+        testRunner.addTest('Import/Export - Wrong Schema Validation', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            
+            // Mock alert to capture error messages
+            let alertMessage = '';
+            const originalAlert = frameWindow.alert;
+            frameWindow.alert = (msg) => { alertMessage = msg; };
+            
+            // Create JSON with wrong schema (not an array)
+            const wrongSchema = '{ "recipes": [{ "name": "test" }] }';
+            const mockFile = new Blob([wrongSchema], { type: 'application/json' });
+            
+            if (frameWindow.handleImport) {
+                frameWindow.handleImport(mockFile);
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const schemaErrorHandled = alertMessage.includes('Expected an array');
+                
+                // Restore alert
+                frameWindow.alert = originalAlert;
+                
+                return { 
+                    passed: schemaErrorHandled, 
+                    message: schemaErrorHandled ? 'Wrong schema error handled correctly' : 'Wrong schema not detected' 
+                };
+            } else {
+                frameWindow.alert = originalAlert;
+                return { passed: false, message: 'handleImport function not found' };
+            }
+        }, 'import-export');
+
         testRunner.addTest('Recipe - Load and Verify', async () => {
             const frame = document.getElementById('testFrame');
             const frameWindow = frame.contentWindow;

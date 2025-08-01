@@ -143,7 +143,10 @@
             <option value="">-- Select Recipe --</option>
         </select>
         <button id="saveRecipe" data-tooltip="Save Recipe">Save</button>
-        <div class="gear-icon" id="gearIcon" data-tooltip="Recipe Options">⚙️</div>
+        <button id="exportRecipes" data-tooltip="Export Recipes">Export</button>
+        <button id="importRecipes" data-tooltip="Import Recipes">Import</button>
+        <input type="file" id="importFileInput" accept="application/json" style="display:none">
+        <div class="gear-icon" id="gearIcon" data-tooltip="Recipe Options (Import/Export via buttons above)">⚙️</div>
         <div class="recipe-context-menu" id="recipeMenu" style="display: none;">
             <button id="renameRecipe">Rename</button>
             <button id="deleteRecipe">Delete</button>

@@ -44,6 +44,7 @@ Using the software to forge a bronze axe head
 ## Recipe System
 
 - **Load/Save Recipes**: Save your current forging setup and rules as a recipe.
+- **Import/Export Recipes**: Export your recipes to a JSON file or import them back to the application to share with others or keep backups.
 - **Manage Recipes**: Use the gear icon to rename or delete existing recipes efficiently.
 
 ## License

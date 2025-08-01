@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Gameplay de Bigorna</title>
+    <link rel="preload" href="style.css" as="style">
+    <link rel="preload" href="assets/action-button-green-full.png" as="image">
+    <link rel="preload" href="assets/action-button-red-full.png" as="image">
+    <link rel="preload" href="assets/bar.png" as="image">
+    <link rel="preload" href="assets/bend.png" as="image">
+    <link rel="preload" href="assets/draw.png" as="image">
+    <link rel="preload" href="assets/flux-bg.png" as="image">
+    <link rel="preload" href="assets/hammer-bg.png" as="image">
+    <link rel="preload" href="assets/hard-hit.png" as="image">
+    <link rel="preload" href="assets/hit.png" as="image">
+    <link rel="preload" href="assets/indicator-green.png" as="image">
+    <link rel="preload" href="assets/indicator-orange.png" as="image">
+    <link rel="preload" href="assets/indicator.png" as="image">
+    <link rel="preload" href="assets/inventory.svg" as="image">
+    <link rel="preload" href="assets/light-hit.png" as="image">
+    <link rel="preload" href="assets/medium-hit.png" as="image">
+    <link rel="preload" href="assets/Minecraft.otf" as="font" type="font/otf">
+    <link rel="preload" href="assets/performed-step-outline.png" as="image">
+    <link rel="preload" href="assets/piece-bg.png" as="image">
+    <link rel="preload" href="assets/plan-button.png" as="image">
+    <link rel="preload" href="assets/punch.png" as="image">
+    <link rel="preload" href="assets/shrink.png" as="image">
+    <link rel="preload" href="assets/slider.png" as="image">
+    <link rel="preload" href="assets/slot.png" as="image">
+    <link rel="preload" href="assets/step-green.png" as="image">
+    <link rel="preload" href="assets/step-orange.png" as="image">
+    <link rel="preload" href="assets/top-bar.png" as="image">
+    <link rel="preload" href="assets/upset.png" as="image">
+    <link rel="preload" href="assets/github-mark.svg" as="image">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="tooltip hidden"><span class="tooltip-text"></span></div>
+    <div class="inventory">
+        <span class="title">Anvil</span>
+        <div class="first top-bar"></div>
+        <div class="second top-bar"></div>
+        <div class="plan-button">
+            <a href="https://github.com/iagocq/tfc-anvil" target="_blank">
+                <div class="github bg" data-tooltip="Source Code"></div>
+            </a>
+        </div>
+        <div class="hints steps">
+            <div>
+                <div class="expected"></div>
+                <div class="indicators">
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                </div>
+                <div class="performed hidden"></div>
+            </div>
+            <div>
+                <div class="expected"></div>
+                <div class="indicators">
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                </div>
+                <div class="performed hidden"></div>
+            </div>
+            <div>
+                <div class="expected"></div>
+                <div class="indicators">
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                </div>
+                <div class="performed hidden"></div>
+            </div>
+        </div>
+        <div class="real steps">
+            <div>
+                <div class="expected" data-tooltip="Select Last Step"></div>
+                <div class="indicators">
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                </div>
+                <div class="performed"></div>
+            </div>
+            <div>
+                <div class="expected" data-tooltip="Select Second Last Step"></div>
+                <div class="indicators">
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                </div>
+                <div class="performed"></div>
+            </div>
+            <div>
+                <div class="expected" data-tooltip="Select Third Last Step"></div>
+                <div class="indicators">
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                    <div class="indicator"></div>
+                </div>
+                <div class="performed"></div>
+            </div>
+        </div>
+        <div class="left slots">
+            <div class="slot"></div>
+            <div class="slot"><div class="piece bg"></div></div>
+        </div>
+        <div class="all-actions">
+            <div class="red actions">
+                <div><div class="light-hit bg" data-tooltip="Light Hit"></div></div>
+                <div><div class="medium-hit bg" data-tooltip="Medium Hit"></div></div>
+                <div><div class="hard-hit bg" data-tooltip="Hard Hit"></div></div>
+                <div><div class="draw bg" data-tooltip="Draw"></div></div>
+            </div>
+            <div class="green actions">
+                <div><div class="punch bg" data-tooltip="Punch"></div></div>
+                <div><div class="bend bg" data-tooltip="Bend"></div></div>
+                <div><div class="upset bg" data-tooltip="Upset"></div></div>
+                <div><div class="shrink bg" data-tooltip="Shrink"></div></div>
+            </div>
+        </div>
+        <div class="right slots">
+            <div class="slot"><div class="hammer bg"></div></div>
+            <div class="slot"><div class="flux bg"></div></div>
+        </div>
+        <div class="bar">
+            <div class="green slider"></div>
+            <div class="red slider"></div>
+        </div>
+    </div>
+    <script src="main.js"></script>
+    <!-- UI enhancement containers -->
+    <div class="slider-inputs">
+        <input id="greenSliderInput" type="number" min="0" max="150" value="0">
+        <input id="redSliderInput" type="number" min="0" max="150" value="0">
+    </div>
+    <div class="full-sequence"></div>
+    <div class="recipe-manager">
+        <select id="recipeList">
+            <option value="">-- Select Recipe --</option>
+        </select>
+        <button id="saveRecipe" data-tooltip="Save Recipe">Save</button>
+        <div class="gear-icon" id="gearIcon" data-tooltip="Recipe Options">⚙️</div>
+        <div class="recipe-context-menu" id="recipeMenu" style="display: none;">
+            <button id="renameRecipe">Rename</button>
+            <button id="deleteRecipe">Delete</button>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,723 @@
+@font-face {
+    font-family: 'Minecraft';
+    src: url('assets/Minecraft.otf');
+}
+
+:root {
+    --inventory-width: 170px;
+    --inventory-height: 105px;
+    --tooltip-x: 0;
+    --tooltip-y: 0;
+    --tooltip-offset-x: 8;
+    --tooltip-offset-y: 4;
+    --px: calc(1px * var(--gui-scale));
+    --2px: calc(2px * var(--gui-scale));
+    --3px: calc(3px * var(--gui-scale));
+    --4px: calc(4px * var(--gui-scale));
+}
+
+html {
+    height: 100%;    
+    image-rendering: pixelated;
+    font-family: 'Minecraft';
+    font-kerning: none;
+    -webkit-font-smoothing: none;
+    user-select: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+}
+
+/* Placeholder containers for new UI elements */
+.rules-form {
+    position: absolute;
+    top: calc(50% - (var(--inventory-height) * var(--gui-scale))/2 - calc(80px * var(--gui-scale)));
+    left: calc(50% - (var(--inventory-width) * var(--gui-scale))/2);
+    width: calc(var(--inventory-width) * var(--gui-scale));
+    height: auto;
+    min-height: calc(70px * var(--gui-scale));
+    background: rgba(0, 0, 0, 0.8);
+    border: var(--px) solid rgba(128, 128, 128, 0.5);
+    border-radius: var(--4px);
+    padding: calc(8px * var(--gui-scale));
+    box-sizing: border-box;
+    transition: height 0.3s ease;
+    z-index: 1;
+}
+
+.rules-form textarea {
+    width: 100%;
+    height: calc(40px * var(--gui-scale));
+    font-family: 'Minecraft';
+    font-size: calc(8px * var(--gui-scale));
+    background: rgba(255, 255, 255, 0.9);
+    border: var(--px) solid rgba(128, 128, 128, 0.5);
+    border-radius: var(--2px);
+    padding: var(--4px);
+    resize: vertical;
+    box-sizing: border-box;
+    margin-bottom: var(--4px);
+}
+
+.rules-form button {
+    font-family: 'Minecraft';
+    font-size: calc(8px * var(--gui-scale));
+    background: rgba(0, 150, 0, 0.8);
+    color: white;
+    border: var(--px) solid rgba(128, 128, 128, 0.5);
+    border-radius: var(--2px);
+    padding: var(--4px) calc(8px * var(--gui-scale));
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.rules-form button:hover {
+    background: rgba(0, 180, 0, 0.9);
+}
+
+.rules-form button:active {
+    background: rgba(0, 120, 0, 0.8);
+}
+
+#validation-errors {
+    font-family: 'Minecraft';
+    font-size: calc(7px * var(--gui-scale));
+    color: #ff4444;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--2px);
+    padding: var(--2px) var(--4px);
+    margin-top: var(--4px);
+    line-height: 1.2;
+    max-height: calc(60px * var(--gui-scale));
+    overflow-y: auto;
+}
+
+.error-tooltip {
+    position: absolute;
+    background-color: #ff4444;
+    color: white;
+    padding: calc(6px * var(--gui-scale));
+    font-family: 'Minecraft';
+    font-size: calc(8px * var(--gui-scale));
+    border: calc(1px * var(--gui-scale)) solid #cc0000;
+    border-radius: calc(3px * var(--gui-scale));
+    white-space: nowrap;
+    max-width: calc(300px * var(--gui-scale));
+    white-space: normal;
+    word-wrap: break-word;
+    box-shadow: calc(2px * var(--gui-scale)) calc(2px * var(--gui-scale)) calc(4px * var(--gui-scale)) rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    animation: errorFadeIn 0.3s ease-in;
+}
+
+@keyframes errorFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(calc(-5px * var(--gui-scale)));
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slider-inputs {
+    position: absolute;
+    top: calc(50% + (var(--inventory-height) * var(--gui-scale))/2 + calc(20px * var(--gui-scale)));
+    left: calc(50% + (var(--inventory-width) * var(--gui-scale))/2 + calc(10px * var(--gui-scale)));
+    display: flex;
+    gap: calc(5px * var(--gui-scale));
+    z-index: 1;
+}
+
+.slider-inputs input[type="number"] {
+    width: calc(40px * var(--gui-scale));
+    height: calc(20px * var(--gui-scale));
+    font-size: calc(8px * var(--gui-scale));
+    font-family: 'Minecraft';
+    background: rgba(255, 255, 255, 0.8);
+    text-align: center;
+    transition: border-color 0.2s ease;
+}
+
+.slider-inputs input[type="number"]:focus:invalid,
+.slider-inputs input[type="number"][style*="border-color: red"] {
+    border-color: red !important;
+}
+
+#greenSliderInput {
+    border: 2px solid rgba(0, 150, 0, 0.8);
+}
+
+#redSliderInput {
+    border: 2px solid rgba(150, 0, 0, 0.8);
+}
+
+.full-sequence {
+    position: absolute;
+    top: calc(50% - (var(--inventory-height) * var(--gui-scale))/2);
+    left: calc(50% + (var(--inventory-width) * var(--gui-scale))/2 + calc(10px * var(--gui-scale)));
+    width: calc(80px * var(--gui-scale));
+    height: calc(var(--inventory-height) * var(--gui-scale));
+    background: rgba(0, 0, 0, 0.1);
+    border: var(--px) solid rgba(128, 128, 128, 0.3);
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 1;
+}
+
+.recipe-manager {
+    position: absolute;
+    top: calc(50% - calc(120px * var(--gui-scale)));
+    left: calc(50% - (var(--inventory-width) * var(--gui-scale))/2);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: calc(4px * var(--gui-scale));
+    background: rgba(0, 0, 0, 0.7);
+    padding: calc(4px * var(--gui-scale));
+    border-radius: calc(3px * var(--gui-scale));
+    border: var(--px) solid rgba(128, 128, 128, 0.5);
+}
+
+.recipe-manager select {
+    font-family: 'Minecraft';
+    font-size: calc(6px * var(--gui-scale));
+    background: rgba(255, 255, 255, 0.9);
+    border: var(--px) solid rgba(128, 128, 128, 0.7);
+    padding: calc(2px * var(--gui-scale));
+    min-width: calc(80px * var(--gui-scale));
+    max-width: calc(120px * var(--gui-scale));
+    border-radius: calc(2px * var(--gui-scale));
+}
+
+.recipe-manager button {
+    font-family: 'Minecraft';
+    font-size: calc(6px * var(--gui-scale));
+    background: rgba(0, 150, 0, 0.8);
+    color: white;
+    border: var(--px) solid rgba(128, 128, 128, 0.7);
+    border-radius: calc(2px * var(--gui-scale));
+    padding: calc(2px * var(--gui-scale)) calc(6px * var(--gui-scale));
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.recipe-manager button:hover {
+    background: rgba(0, 180, 0, 0.9);
+}
+
+.recipe-manager button:active {
+    background: rgba(0, 120, 0, 0.8);
+}
+
+.gear-icon {
+    font-size: calc(8px * var(--gui-scale));
+    cursor: pointer;
+    padding: calc(2px * var(--gui-scale));
+    background: rgba(128, 128, 128, 0.3);
+    border: var(--px) solid rgba(128, 128, 128, 0.5);
+    border-radius: calc(2px * var(--gui-scale));
+    transition: background-color 0.2s ease;
+    user-select: none;
+}
+
+.gear-icon:hover {
+    background: rgba(128, 128, 128, 0.5);
+}
+
+.recipe-context-menu {
+    position: absolute;
+    top: calc(100% + calc(2px * var(--gui-scale)));
+    right: 0;
+    background: rgba(0, 0, 0, 0.9);
+    border: var(--px) solid rgba(128, 128, 128, 0.7);
+    border-radius: calc(2px * var(--gui-scale));
+    padding: calc(2px * var(--gui-scale));
+    display: flex;
+    flex-direction: column;
+    gap: calc(1px * var(--gui-scale));
+    min-width: calc(60px * var(--gui-scale));
+    z-index: 100;
+}
+
+.recipe-context-menu button {
+    font-family: 'Minecraft';
+    font-size: calc(6px * var(--gui-scale));
+    background: rgba(128, 128, 128, 0.3);
+    color: white;
+    border: var(--px) solid rgba(128, 128, 128, 0.5);
+    border-radius: calc(1px * var(--gui-scale));
+    padding: calc(2px * var(--gui-scale)) calc(4px * var(--gui-scale));
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    text-align: left;
+}
+
+.recipe-context-menu button:hover {
+    background: rgba(128, 128, 128, 0.5);
+}
+
+.recipe-context-menu button:active {
+    background: rgba(128, 128, 128, 0.7);
+}
+
+.inventory {
+    transform: scale(var(--gui-scale));
+    position: absolute;
+    left: calc(50% - var(--inventory-width)/2);
+    top: calc(50% - var(--inventory-height)/2);
+    width: var(--inventory-width);
+    height: var(--inventory-height);
+    z-index: 10; /* Ensure inventory stays on top */
+
+    &::before {
+        position: absolute;
+        content: "";
+        display: block;
+        height: calc(100% + 6px);
+        width: calc(100% + 6px);
+        background-image: url('assets/inventory.svg');
+        left: -3px;
+        top: -3px;
+    }
+
+    > .title {
+        font-size: 8.8px;
+        bottom: 92px;
+        left: 5px;
+    }
+
+    > * {
+        position: absolute;
+    }
+}
+
+.slots {
+    display: flex;
+
+    > .slot {
+        position: relative;
+        width: 16px;
+        height: 16px;
+        margin: 1px;
+
+        &::before {
+            content: "";
+            display: block;
+            position: absolute;
+            background-image: url('assets/slot.png');
+            width: 18px;
+            height: 18px;
+            left: -1px;
+            top: -1px;    
+        }
+
+        &:hover::after {
+            position: absolute;
+            content: "";
+            display: block;
+            background-color: rgb(50%, 50%, 50%);
+            width: 100%;
+            height: 100%;
+            mix-blend-mode: screen;
+        }
+
+        > * {
+            position: absolute;
+        }
+    }
+
+    &.left {
+        left: 9px;
+        bottom: 23px;
+    }
+
+    &.right {
+        left: 125px;
+        bottom: 23px;
+    }
+}
+
+.bar {
+    left: 9px;
+    top: 93px;
+    width: 152px;
+    height: 7px;
+    background-image: url('assets/bar.png');
+}
+
+.top-bar {
+    left: 53px;
+    background-image: url('assets/top-bar.png');
+    width: 64px;
+    height: 14px;
+
+    &.first {
+        top: 5px;
+    }
+
+    &.second {
+        top: 26px;
+    }
+}
+
+.all-actions {
+    display: flex;
+    left: 50px;
+    top: 47px;
+    width: calc(18px * 4);
+
+    > .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        width: calc(18px * 2);
+    
+        > * {
+            position: relative;
+            width: 16px;
+            height: 16px;
+            background-size: cover;
+            --tooltip-offset-x: 8;
+            --tooltip-offset-y: 4;
+        }
+
+        &.green > * {
+            background-image: url('assets/action-button-green-full.png');
+        }
+
+        &.red > * {
+            background-image: url('assets/action-button-red-full.png');
+        }
+    }
+}
+
+.plan-button {
+    top: 37px;
+    left: 18px;
+    width: 12px;
+    height: 12px;
+    margin: 3px;
+
+    &::before {
+        position: absolute;
+        display: block;
+        content: "";
+        top: -3px;
+        left: -3px;
+        width: 18px;
+        height: 18px;
+        background-image: url('assets/plan-button.png');
+    }
+}
+
+.slider {
+    position: absolute;
+    width: 9px;
+    height: 7px;
+    --zero: -1px;
+    left: calc(var(--zero) + min(150, max(0, var(--slider-progress))) * 1px);
+    background-image: url('assets/slider.png');
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    background-position-x: 2px;
+
+    &::before {
+        position: absolute;
+        display: block;
+        content: "";
+        width: 1px;
+        height: 2px;
+        top: 2px;
+        left: 4px;
+    }
+
+    &.red {
+        --slider-progress: 0;
+        transform: rotateZ(180deg);
+        top: -4px;
+    }
+
+    &.green {
+        --slider-progress: 0;
+        top: 4px;
+    }
+
+    &.red::before {
+        background-color: #ff0000;
+    }
+
+    &.green::before {
+        background-color: #00ff06;
+    }
+}
+.steps {
+    display: flex;
+    gap: 3px;
+    left: 58px;
+    top: 4px;
+
+    [data-tooltip] {
+        --tooltip-offset-x: 8;
+        --tooltip-offset-y: -16;
+    }
+
+    > * {
+        display: flex;
+        flex-direction: column;
+        > .indicators {
+            opacity: 0;
+            position: relative;
+            height: 5px;
+
+            &::before {
+                position: absolute;
+                display: block;
+                content: "";
+                width: 20px;
+                height: 7px;
+                background-image: url('assets/indicator.png');
+                left: -2px;
+                bottom: -1px;
+            }
+
+            > .indicator {
+                position: absolute;
+                height: 7px;
+                width: 20px;
+                left: -2px;
+                bottom: -1px;
+                background-repeat: no-repeat;
+            }
+            > .indicator:nth-child(2) {
+                background-position-y: -2px;
+            }
+            > .indicator:nth-child(3) {
+                background-position-y: -4px;
+            }
+        }
+        > .performed, > .expected {
+            position: relative;
+            width: 10px;
+            height: 10px;
+            margin: 3px;
+
+            &::before {
+                content: "";
+                display: block;
+                position: absolute;
+                width: 16px;
+                height: 16px;
+                left: -3px;
+                top: -3px;
+                background-image: url('assets/performed-step-outline.png');
+            }
+        }
+        > .expected {
+            opacity: 0;
+        }
+    }
+    > .green, > .orange {
+        > .indicators, > .expected {
+            opacity: 1;
+        }
+    }
+    > .green {
+        > .expected::before {
+            background-image: url('assets/step-green.png');
+        }
+        > .indicators > .indicator.active {
+            background-image: url('assets/indicator-green.png');
+        }
+    }
+    > .orange {
+        > .expected::before {
+            background-image: url('assets/step-orange.png');
+        }
+        > .indicators > .indicator.active {
+            background-image: url('assets/indicator-orange.png');
+        }
+    }
+    &.hints {
+        flex-direction: row-reverse;
+        left: 1px;
+    }
+    &.hints > * {
+        &:nth-child(1) > .performed {
+            opacity: 0.7;
+        }
+        &:nth-child(2) > .performed {
+            opacity: 0.4;
+        }
+        &:last-child > .performed {
+            opacity: 0.1;
+        }
+        > .performed.bg {
+            visibility: visible;
+        }
+    }
+}
+
+.bg {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    position: absolute;
+
+    &.piece {
+        background-image: url('assets/piece-bg.png');
+    }
+
+    &.hammer {
+        background-image: url('assets/hammer-bg.png');
+    }
+
+    &.flux {
+        background-image: url('assets/flux-bg.png');
+    }
+
+    &.hit {
+        background-image: url('assets/hit.png');
+    }
+
+    &.light-hit {
+        background-image: url('assets/light-hit.png');
+    }
+
+    &.medium-hit {
+        background-image: url('assets/medium-hit.png');
+    }
+
+    &.hard-hit {
+        background-image: url('assets/hard-hit.png');
+    }
+
+    &.draw {
+        background-image: url('assets/draw.png');
+    }
+
+    &.punch {
+        background-image: url('assets/punch.png');
+    }
+
+    &.bend {
+        background-image: url('assets/bend.png');
+    }
+
+    &.upset {
+        background-image: url('assets/upset.png');
+    }
+
+    &.shrink {
+        background-image: url('assets/shrink.png');
+    }
+
+    &.github {
+        background-image: url('assets/github-mark.svg');
+        background-repeat: no-repeat;
+        background-size: 90%;
+    }
+}
+
+.tooltip {
+    position: absolute;
+    left: calc((var(--tooltip-offset-x) + var(--tooltip-x)) * var(--px));
+    top: calc((var(--tooltip-offset-y) + var(--tooltip-y)) * var(--px));
+    z-index: 9999;
+
+    & > .tooltip-text {
+        position: relative;
+        color: #fcfcfc;
+        font-size: calc(8.8px * var(--gui-scale));
+        bottom: var(--px);
+        text-shadow: #626262 var(--px) var(--px);
+    }
+
+    &::before, &::after {
+        position: absolute;
+        display: block;
+        content: "";
+    }
+    
+    &::before {
+        top: calc(-4 * var(--px));
+        left: calc(-4 * var(--px));
+        height: calc((var(--tooltip-height) + 9) * var(--px));
+        width: calc((var(--tooltip-width) + 9) * var(--px));
+        --bg: rgba(16, 0, 16, calc(16/17));
+        background:
+            linear-gradient( /* backdrop */
+                var(--bg),
+                var(--bg)
+            ) no-repeat,
+            linear-gradient( /* right side */
+                var(--bg),
+                var(--bg)
+            ) no-repeat,
+            linear-gradient( /* left side */
+                var(--bg),
+                var(--bg)
+            ) no-repeat
+        ;
+        background-position:
+            /* backdrop */
+            left var(--px) top 0,
+            /* right side */
+            right 0 top var(--px),
+            /* left side */
+            left 0 top var(--px)
+        ;
+
+        background-size:
+            calc(100% - var(--2px)) 100%,
+            var(--px) calc(100% - var(--2px)),
+            var(--px) calc(100% - var(--2px))
+        ;
+    }
+
+    &::after {
+        --outline: rgba(75, 0, 240, calc(1/3));
+        --outline-dark: rgba(38, 0, 121, calc(1/3));
+        top: calc(-3 * var(--px));
+        left: calc(-3 * var(--px));
+        height: calc((var(--tooltip-height) + 5) * var(--px));
+        width: calc((var(--tooltip-width) + 5) * var(--px));
+        border-width: var(--px);
+        border-style: solid;
+        border-image: linear-gradient(to bottom, var(--outline), var(--outline-dark)) 1;
+    }
+}
+
+.hidden {
+    visibility: collapse;
+}
+
+@media screen and (max-width: 400px) {
+    :root {
+        --gui-scale: 1;
+    }
+}
+
+@media screen and (min-width: 400px) and (max-width: 600px) {
+    :root {
+        --gui-scale: 2;
+    }
+}
+
+@media screen and (min-width: 600px) and (max-width: 800px) {
+    :root {
+        --gui-scale: 3;
+    }
+}
+
+@media screen and (min-width: 800px) {
+    :root {
+        --gui-scale: 4;
+    }
+}

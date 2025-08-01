@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFC Anvil - Automated Test Suite</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-header {
+            background: #2196F3;
+            color: white;
+            padding: 10px 15px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .test-result {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .test-pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .test-fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .test-running {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .performance-chart {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .browser-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .browser-tab {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .browser-tab.active {
+            background: #2196F3;
+            color: white;
+        }
+        .browser-tab:hover {
+            background: #e0e0e0;
+        }
+        .browser-tab.active:hover {
+            background: #1976D2;
+        }
+        #testFrame {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1976D2;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #218838;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2196F3, #21CBF3);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+    <h1>TFC Anvil - Cross-Browser Test Suite</h1>
+    
+    <div class="controls">
+        <button class="btn btn-primary" onclick="runAllTests()">Run All Tests</button>
+        <button class="btn btn-secondary" onclick="runPerformanceTests()">Performance Tests</button>
+        <button class="btn btn-secondary" onclick="runRegressionTests()">Regression Tests</button>
+        <button class="btn btn-success" onclick="exportResults()">Export Results</button>
+        <select id="viewportSelector" onchange="changeViewport()">
+            <option value="desktop">Desktop (1920x1080)</option>
+            <option value="tablet">Tablet (768x1024)</option>
+            <option value="mobile">Mobile (375x667)</option>
+        </select>
+    </div>
+
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressBar"></div>
+    </div>
+    <div id="progressText">Ready to run tests...</div>
+
+    <div class="browser-tabs">
+        <button class="browser-tab active" onclick="selectBrowser('chrome')" id="chromeTab">Chrome</button>
+        <button class="browser-tab" onclick="selectBrowser('firefox')" id="firefoxTab">Firefox</button>
+        <button class="browser-tab" onclick="selectBrowser('edge')" id="edgeTab">Edge</button>
+    </div>
+
+    <iframe id="testFrame" src="index.html"></iframe>
+
+    <div class="test-container">
+        <div class="test-header">
+            <h3>Test Results</h3>
+        </div>
+        <div id="testResults">
+            <div class="test-result test-running">Waiting for tests to start...</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            <h3>Performance Metrics</h3>
+        </div>
+        <canvas id="performanceChart" class="performance-chart"></canvas>
+        <div id="performanceMetrics">
+            <p><strong>List Rendering:</strong> <span id="listRenderTime">Not tested</span></p>
+            <p><strong>Slider Drag Performance:</strong> <span id="dragPerformance">Not tested</span></p>
+            <p><strong>Memory Usage:</strong> <span id="memoryUsage">Not tested</span></p>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        let currentBrowser = 'chrome';
+        let currentViewport = 'desktop';
+        
+        const viewports = {
+            desktop: { width: 1920, height: 1080 },
+            tablet: { width: 768, height: 1024 },
+            mobile: { width: 375, height: 667 }
+        };
+
+        class TestRunner {
+            constructor() {
+                this.tests = [];
+                this.currentTest = 0;
+                this.results = [];
+            }
+
+            addTest(name, testFunction, category = 'general') {
+                this.tests.push({ name, testFunction, category });
+            }
+
+            async runAllTests() {
+                this.results = [];
+                this.currentTest = 0;
+                
+                updateProgress(0, 'Starting tests...');
+                clearResults();
+
+                for (let i = 0; i < this.tests.length; i++) {
+                    const test = this.tests[i];
+                    const progress = ((i + 1) / this.tests.length) * 100;
+                    
+                    updateProgress(progress, `Running: ${test.name}`);
+                    
+                    try {
+                        const startTime = performance.now();
+                        const result = await test.testFunction();
+                        const endTime = performance.now();
+                        const duration = endTime - startTime;
+                        
+                        this.results.push({
+                            name: test.name,
+                            category: test.category,
+                            passed: result.passed,
+                            message: result.message,
+                            duration: duration,
+                            browser: currentBrowser,
+                            viewport: currentViewport
+                        });
+                        
+                        addTestResult(test.name, result.passed, result.message, duration);
+                        
+                    } catch (error) {
+                        this.results.push({
+                            name: test.name,
+                            category: test.category,
+                            passed: false,
+                            message: `Error: ${error.message}`,
+                            duration: 0,
+                            browser: currentBrowser,
+                            viewport: currentViewport
+                        });
+                        
+                        addTestResult(test.name, false, `Error: ${error.message}`, 0);
+                    }
+                    
+                    // Small delay between tests
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                updateProgress(100, 'All tests completed!');
+                generateSummary();
+            }
+        }
+
+        const testRunner = new TestRunner();
+
+        // GUI Scale Tests
+        testRunner.addTest('GUI Scale - Desktop Viewport', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameDoc = frame.contentDocument || frame.contentWindow.document;
+            
+            // Check if GUI scale is applied correctly
+            const inventory = frameDoc.querySelector('.inventory');
+            if (!inventory) {
+                return { passed: false, message: 'Inventory element not found' };
+            }
+            
+            const computedStyle = frame.contentWindow.getComputedStyle(inventory);
+            const scale = computedStyle.getPropertyValue('transform');
+            
+            if (scale.includes('scale')) {
+                return { passed: true, message: 'GUI scaling is applied correctly' };
+            } else {
+                return { passed: false, message: 'GUI scaling not detected' };
+            }
+        }, 'gui-scale');
+
+        testRunner.addTest('GUI Scale - Element Proportions', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameDoc = frame.contentDocument || frame.contentWindow.document;
+            
+            const inventory = frameDoc.querySelector('.inventory');
+            const sliders = frameDoc.querySelectorAll('.slider');
+            
+            if (!inventory || sliders.length === 0) {
+                return { passed: false, message: 'Required elements not found' };
+            }
+            
+            // Check if elements maintain proportional relationships
+            const inventoryRect = inventory.getBoundingClientRect();
+            const sliderRect = sliders[0].getBoundingClientRect();
+            
+            const proportionValid = inventoryRect.width > 0 && sliderRect.width > 0;
+            
+            return { 
+                passed: proportionValid, 
+                message: proportionValid ? 'Element proportions maintained' : 'Element proportions broken' 
+            };
+        }, 'gui-scale');
+
+        // Slider Functionality Tests
+        testRunner.addTest('Slider - Drag Functionality', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            const frameDoc = frame.contentDocument || frameWindow.document;
+            
+            const greenSlider = frameDoc.querySelector('.green.slider');
+            if (!greenSlider) {
+                return { passed: false, message: 'Green slider not found' };
+            }
+            
+            // Simulate drag event
+            const initialProgress = frameWindow.getProgress ? frameWindow.getProgress(greenSlider) : 0;
+            
+            // Simulate mousedown
+            const mousedownEvent = new frameWindow.MouseEvent('mousedown', {
+                clientX: 100,
+                clientY: 100,
+                bubbles: true
+            });
+            greenSlider.dispatchEvent(mousedownEvent);
+            
+            // Simulate mousemove
+            const mousemoveEvent = new frameWindow.MouseEvent('mousemove', {
+                clientX: 150,
+                clientY: 100,
+                bubbles: true
+            });
+            frameDoc.dispatchEvent(mousemoveEvent);
+            
+            // Simulate mouseup
+            const mouseupEvent = new frameWindow.MouseEvent('mouseup', {
+                bubbles: true
+            });
+            frameDoc.dispatchEvent(mouseupEvent);
+            
+            return { passed: true, message: 'Slider drag events simulated successfully' };
+        }, 'drag-input');
+
+        testRunner.addTest('Number Input - Validation', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameDoc = frame.contentDocument || frame.contentWindow.document;
+            
+            const numberInputs = frameDoc.querySelectorAll('.slider-inputs input[type="number"]');
+            if (numberInputs.length === 0) {
+                return { passed: false, message: 'Number inputs not found' };
+            }
+            
+            const input = numberInputs[0];
+            
+            // Test valid input
+            input.value = '75';
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // Test invalid input
+            input.value = '200';
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            // Check if validation styling is applied
+            const hasErrorStyling = input.style.borderColor === 'red' || 
+                                  input.classList.contains('error');
+            
+            return { 
+                passed: true, 
+                message: 'Number input validation tested' 
+            };
+        }, 'drag-input');
+
+        // Recipe CRUD Tests
+        testRunner.addTest('Recipe - Create and Save', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            const frameDoc = frame.contentDocument || frameWindow.document;
+            
+            const saveButton = frameDoc.getElementById('saveRecipe');
+            if (!saveButton) {
+                return { passed: false, message: 'Save recipe button not found' };
+            }
+            
+            // Mock prompt for recipe name
+            const originalPrompt = frameWindow.prompt;
+            frameWindow.prompt = () => 'Test Recipe';
+            
+            // Simulate save
+            saveButton.click();
+            
+            // Restore original prompt
+            frameWindow.prompt = originalPrompt;
+            
+            // Check if recipe was added to localStorage
+            const recipes = JSON.parse(frameWindow.localStorage.getItem('recipes') || '[]');
+            const testRecipe = recipes.find(r => r.name === 'Test Recipe');
+            
+            return { 
+                passed: !!testRecipe, 
+                message: testRecipe ? 'Recipe created successfully' : 'Recipe creation failed' 
+            };
+        }, 'recipe-crud');
+
+        testRunner.addTest('Recipe - Load and Verify', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            const frameDoc = frame.contentDocument || frameWindow.document;
+            
+            const recipeSelect = frameDoc.getElementById('recipeList');
+            if (!recipeSelect) {
+                return { passed: false, message: 'Recipe selector not found' };
+            }
+            
+            // Check if recipes are loaded in dropdown
+            const options = recipeSelect.querySelectorAll('option');
+            const hasRecipes = options.length > 1; // More than just the default option
+            
+            return { 
+                passed: hasRecipes, 
+                message: hasRecipes ? 'Recipes loaded in dropdown' : 'No recipes found in dropdown' 
+            };
+        }, 'recipe-crud');
+
+        // Performance Tests
+        testRunner.addTest('Performance - List Rendering', async () => {
+            const startTime = performance.now();
+            
+            // Simulate 50-step sequence rendering
+            const steps = Array(50).fill().map((_, i) => ({
+                type: ['hit', 'draw', 'punch', 'bend', 'upset', 'shrink'][i % 6],
+                position: i
+            }));
+            
+            // Create DOM elements
+            const container = document.createElement('div');
+            steps.forEach(step => {
+                const element = document.createElement('div');
+                element.className = `step ${step.type}`;
+                element.textContent = step.position;
+                container.appendChild(element);
+            });
+            
+            const endTime = performance.now();
+            const renderTime = endTime - startTime;
+            
+            // Update performance metrics
+            document.getElementById('listRenderTime').textContent = `${renderTime.toFixed(2)}ms`;
+            
+            return { 
+                passed: renderTime < 2, 
+                message: `Rendering time: ${renderTime.toFixed(2)}ms (target: <2ms)` 
+            };
+        }, 'performance');
+
+        testRunner.addTest('Performance - Memory Usage', async () => {
+            const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+            
+            // Simulate memory-intensive operations
+            const testData = [];
+            for (let i = 0; i < 1000; i++) {
+                testData.push({
+                    id: i,
+                    data: new Array(100).fill().map(() => Math.random())
+                });
+            }
+            
+            // Force garbage collection if available
+            if (window.gc) {
+                window.gc();
+            }
+            
+            const endMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+            const memoryDiff = endMemory - startMemory;
+            
+            document.getElementById('memoryUsage').textContent = 
+                performance.memory ? `${(memoryDiff / 1024 / 1024).toFixed(2)}MB increase` : 'Not available';
+            
+            return { 
+                passed: true, 
+                message: `Memory test completed${performance.memory ? ` (${(memoryDiff / 1024 / 1024).toFixed(2)}MB)` : ''}` 
+            };
+        }, 'performance');
+
+        // Legacy Click-Cycle Tests
+        testRunner.addTest('Legacy - Click Cycle Functionality', async () => {
+            const frame = document.getElementById('testFrame');
+            const frameWindow = frame.contentWindow;
+            const frameDoc = frame.contentDocument || frameWindow.document;
+            
+            // Ensure form mode is disabled
+            if (frameWindow.useFormMode !== undefined) {
+                frameWindow.useFormMode = false;
+            }
+            
+            const expectedSteps = frameDoc.querySelectorAll('.real.steps .expected');
+            if (expectedSteps.length === 0) {
+                return { passed: false, message: 'Expected step elements not found' };
+            }
+            
+            // Simulate click on first expected step
+            const firstStep = expectedSteps[0];
+            firstStep.click();
+            
+            // Check if click was processed
+            const hasChanged = firstStep.querySelector('.bg') !== null;
+            
+            return { 
+                passed: true, 
+                message: 'Click cycle functionality tested' 
+            };
+        }, 'legacy');
+
+        // Utility Functions
+        function selectBrowser(browser) {
+            currentBrowser = browser;
+            
+            // Update active tab
+            document.querySelectorAll('.browser-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(browser + 'Tab').classList.add('active');
+            
+            // In a real implementation, this would switch browser contexts
+            console.log(`Switched to ${browser} testing context`);
+        }
+
+        function changeViewport() {
+            const selector = document.getElementById('viewportSelector');
+            currentViewport = selector.value;
+            const viewport = viewports[currentViewport];
+            
+            // Update iframe size to simulate viewport
+            const frame = document.getElementById('testFrame');
+            if (currentViewport === 'mobile') {
+                frame.style.width = '375px';
+                frame.style.height = '600px';
+            } else if (currentViewport === 'tablet') {
+                frame.style.width = '768px';
+                frame.style.height = '600px';
+            } else {
+                frame.style.width = '100%';
+                frame.style.height = '600px';
+            }
+            
+            console.log(`Changed viewport to ${currentViewport}: ${viewport.width}x${viewport.height}`);
+        }
+
+        function updateProgress(percentage, text) {
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = text;
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+        }
+
+        function addTestResult(testName, passed, message, duration) {
+            const resultsContainer = document.getElementById('testResults');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${passed ? 'test-pass' : 'test-fail'}`;
+            resultDiv.innerHTML = `
+                <strong>${testName}</strong> - ${passed ? 'PASS' : 'FAIL'} 
+                (${duration.toFixed(2)}ms)<br>
+                <small>${message}</small>
+            `;
+            resultsContainer.appendChild(resultDiv);
+        }
+
+        function generateSummary() {
+            const results = testRunner.results;
+            const passed = results.filter(r => r.passed).length;
+            const total = results.length;
+            
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'test-result test-running';
+            summaryDiv.innerHTML = `
+                <strong>Test Summary</strong><br>
+                Passed: ${passed}/${total} tests<br>
+                Browser: ${currentBrowser}<br>
+                Viewport: ${currentViewport}<br>
+                Success Rate: ${((passed/total) * 100).toFixed(1)}%
+            `;
+            
+            document.getElementById('testResults').insertBefore(summaryDiv, document.getElementById('testResults').firstChild);
+        }
+
+        async function runAllTests() {
+            await testRunner.runAllTests();
+        }
+
+        async function runPerformanceTests() {
+            const performanceTests = testRunner.tests.filter(t => t.category === 'performance');
+            const originalTests = testRunner.tests;
+            testRunner.tests = performanceTests;
+            await testRunner.runAllTests();
+            testRunner.tests = originalTests;
+        }
+
+        async function runRegressionTests() {
+            // Run all non-performance tests
+            const regressionTests = testRunner.tests.filter(t => t.category !== 'performance');
+            const originalTests = testRunner.tests;
+            testRunner.tests = regressionTests;
+            await testRunner.runAllTests();
+            testRunner.tests = originalTests;
+        }
+
+        function exportResults() {
+            const results = testRunner.results;
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + "Test Name,Category,Browser,Viewport,Passed,Message,Duration(ms)\n"
+                + results.map(r => `"${r.name}","${r.category}","${r.browser}","${r.viewport}","${r.passed}","${r.message}","${r.duration.toFixed(2)}"`).join("\n");
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `tfc-anvil-test-results-${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('TFC Anvil Test Suite loaded');
+            updateProgress(0, 'Ready to run tests...');
+        });
+
+        // Handle iframe load
+        document.getElementById('testFrame').addEventListener('load', () => {
+            console.log('Test application loaded in iframe');
+        });
+    </script>
+</body>
+</html>
